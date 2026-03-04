@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Fun Challenge · 5‑Level Platformer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: linear-gradient(145deg, #1b3358 0%, #0e1a2b 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+        .game-wrapper {
+            background: #ffd78c;
+            padding: 24px 24px 32px;
+            border-radius: 60px 60px 40px 40px;
+            box-shadow: 0 20px 0 #b4843c, 0 30px 30px rgba(0,0,0,0.5);
+            border: 4px solid #f0b34b;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            background: #fee3b8;
+            padding: 12px 30px;
+            margin-bottom: 20px;
+            border-radius: 100px;
+            border: 3px solid #ca9645;
+            font-weight: bold;
+            font-size: 1.4rem;
+            text-shadow: 2px 2px 0 #ffe2a3;
+            color: #3a2c1b;
+        }
+        .level-badge {
+            background: #ffb347;
+            padding: 8px 25px;
+            border-radius: 40px;
+            border: 2px solid #9e601d;
+            font-size: 1.8rem;
+            color: #2a1f0e;
+        }
+        .code-panel {
+            background: #2e1f0e;
+            color: #ffd966;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            letter-spacing: 6px;
+            border: 3px solid #dba849;
+            box-shadow: inset 0 -3px 0 #6b4f24;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 30px;
+            background: #7ec8e0;
+            box-shadow: 0 12px 0 #327a8a, 0 20px 20px rgba(0,0,0,0.4);
+            border: 4px solid #f7d44a;
+            cursor: none;
+        }
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 22px;
+            padding: 0 10px;
+            color: #442f12;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .message-area {
+            background: #fef7aa;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: 3px solid #c9a244;
+            font-size: 1.3rem;
+            min-height: 5rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: inset 0 -4px 0 #b38b3c;
+            flex-wrap: wrap;
+        }
+        .button-reset, .button-next, .button-choice, .button-copy {
+            background: #ff6666;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 28px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-bottom: 6px solid #a13d3d;
+            cursor: pointer;
+            transition: 0.07s;
+            margin: 5px;
+        }
+        .button-next {
+            background: #5cb85c;
+            border-bottom-color: #2d672d;
+        }
+        .button-choice {
+            background: #f0ad4e;
+            border-bottom-color: #8a4d0e;
+        }
+        .button-copy {
+            background: #4d90fe;
+            border-bottom-color: #2a4f8c;
+        }
+        .button-reset:active, .button-next:active, .button-choice:active, .button-copy:active {
+            border-bottom-width: 2px;
+            transform: translateY(4px);
+        }
+        .warning-flash {
+            color: #b02c2c;
+            background: #fff1b5;
+            padding: 5px 15px;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            border: 2px solid red;
+            box-shadow: 0 0 15px orange;
+        }
+        .choice-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .final-code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            background: #2e1f0e;
+            color: #ffd966;
+            padding: 8px 20px;
+            border-radius: 30px;
+            letter-spacing: 2px;
+            border: 2px solid #dba849;
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <div class="header">
+        <span>🏆 ULTIMATE FUN CHALLENGE</span>
+        <span class="level-badge" id="levelDisplay">LEVEL 1</span>
+    </div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="info-bar">
+        <div class="code-panel" id="codeDisplay">[ _ ] [ _ ] [ _ ]</div>
+        <div class="warning-flash" id="warningMessage" style="display: none;">⚠️ WARNING ⚠️</div>
+    </div>
+    <div class="message-area" id="gameMessage">
+        <span>✨ Collect stars! ✨</span>
+        <button class="button-reset" id="resetBtn">↺ RESTART</button>
+    </div>
+</div>
+<script>
+(function() {
+    // ----- GAME SETUP -----
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const levelDisplay = document.getElementById('levelDisplay');
+    const codeDisplay = document.getElementById('codeDisplay');
+    const gameMessage = document.getElementById('gameMessage');
+    const warningDiv = document.getElementById('warningMessage');
+
+    // ----- CONSTANTS -----
+    const GRAVITY = 0.5;
+    const JUMP_FORCE = -10;
+    const PLAYER_WIDTH = 20, PLAYER_HEIGHT = 20;
+    const MOVE_SPEED = 3.5;
+
+    // ----- GAME STATE -----
+    let currentLevel = 0;            // 0-based: level1=0, level2=1, level3=2, level4=3, level5=4
+    let codeParts = ["", "", ""];     // only three parts from levels 1-3
+    let player = { x: 50, y: 300, vx: 0, vy: 0, width: PLAYER_WIDTH, height: PLAYER_HEIGHT, onGround: false };
+    let platforms = [];
+    let collectibles = [];
+    let enemies = [];
+    let exit = { x: 0, y: 0, w: 25, h: 30, active: false };
+    let levelComplete = false;
+    let deathReset = false;
+    let levelJustCompleted = false;
+    let requiredOrder = [];
+    let collectedOrderIndex = 0;
+
+    // UI state for choice after level 3
+    let showPostLevel3Choice = false;
+
+    // ----- HELPER: COPY TO CLIPBOARD -----
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Optional: show a quick feedback (but we can just update button text temporarily)
+            const copyBtn = document.querySelector('.button-copy');
+            if (copyBtn) {
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = '✅ Copied!';
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                }, 1500);
+            }
+        }).catch(err => {
+            alert('Failed to copy: ' + err);
+        });
+    }
+
+    // ----- HELPER: UPDATE CODE DISPLAY -----
+    function updateCodeDisplay() {
+        let disp = '';
+        for (let i=0; i<3; i++) {
+            if (codeParts[i] !== '') disp += `[${codeParts[i]}] `;
+            else disp += '[ _ ] ';
+        }
+        codeDisplay.innerText = disp.trim();
+    }
+
+    // ----- LEVEL DEFINITIONS (Levels 4 & 5 a bit harder) -----
+    const levelData = [
+        // LEVEL 1
+        {
+            platforms: [
+                { x: 0, y: 380, w: 800, h: 20 },
+                { x: 200, y: 300, w: 100, h: 20 },
+                { x: 400, y: 250, w: 100, h: 20 },
+                { x: 600, y: 200, w: 100, h: 20 }
+            ],
+            collectibles: [
+                { x: 220, y: 280, type: 'star', color: 'gold', orderColor: null },
+                { x: 270, y: 280, type: 'star', color: 'gold', orderColor: null },
+                { x: 420, y: 230, type: 'star', color: 'gold', orderColor: null },
+                { x: 470, y: 230, type: 'star', color: 'gold', orderColor: null },
+                { x: 620, y: 180, type: 'star', color: 'gold', orderColor: null }
+            ],
+            enemies: [],
+            exit: null,
+            requiredCount: 5,
+            order: null,
+            name: 'LEVEL 1'
+        },
+        // LEVEL 2
+        {
+            platforms: [
+                { x: 0, y: 380, w: 800, h: 20 },
+                { x: 200, y: 300, w: 100, h: 20 },
+                { x: 400, y: 250, w: 100, h: 20 },
+                { x: 600, y: 200, w: 100, h: 20 }
+            ],
+            collectibles: [
+                { x: 220, y: 280, type: 'gem', color: '#44aaff', orderColor: null },
+                { x: 420, y: 230, type: 'gem', color: '#44aaff', orderColor: null },
+                { x: 620, y: 180, type: 'gem', color: '#44aaff', orderColor: null }
+            ],
+            enemies: [
+                { x: 300, y: 360, w: 20, h: 20, dx: 2, minX: 200, maxX: 500 }
+            ],
+            exit: null,
+            requiredCount: 3,
+            order: null,
+            name: 'LEVEL 2'
+        },
+        // LEVEL 3
+        {
+            platforms: [
+                { x: 0, y: 380, w: 800, h: 20 },
+                { x: 150, y: 300, w: 100, h: 20 },
+                { x: 350, y: 250, w: 100, h: 20 },
+                { x: 550, y: 200, w: 100, h: 20 },
+                { x: 650, y: 150, w: 80, h: 20 }
+            ],
+            collectibles: [
+                { x: 170, y: 280, type: 'gem', color: '#ff4d4d', orderColor: 'red' },
+                { x: 370, y: 230, type: 'gem', color: '#6cc46c', orderColor: 'green' },
+                { x: 570, y: 180, type: 'gem', color: '#4da6ff', orderColor: 'blue' }
+            ],
+            enemies: [
+                { x: 400, y: 360, w: 20, h: 20, dx: 2.5, minX: 250, maxX: 600 },
+                { x: 100, y: 360, w: 20, h: 20, dx: 1.5, minX: 50, maxX: 300 }
+            ],
+            exit: null,
+            requiredCount: 3,
+            order: ['red','green','blue'],
+            name: 'LEVEL 3'
+        },
+        // LEVEL 4 (harder)
+        {
+            platforms: [
+                { x: 0, y: 380, w: 800, h: 20 },
+                { x: 150, y: 320, w: 80, h: 20 },
+                { x: 280, y: 280, w: 80, h: 20 },
+                { x: 420, y: 240, w: 80, h: 20 },
+                { x: 560, y: 200, w: 80, h: 20 },
+                { x: 700, y: 160, w: 60, h: 20 }
+            ],
+            collectibles: [],
+            enemies: [
+                { x: 200, y: 360, w: 20, h: 20, dx: 2.0, minX: 120, maxX: 380 },
+                { x: 500, y: 360, w: 20, h: 20, dx: 2.5, minX: 400, maxX: 700 },
+                { x: 350, y: 220, w: 20, h: 20, dx: 1.8, minX: 280, maxX: 500 }
+            ],
+            exit: { x: 720, y: 140, w: 30, h: 30 },
+            requiredCount: 0,
+            order: null,
+            name: 'LEVEL 4'
+        },
+        // LEVEL 5 (harder)
+        {
+            platforms: [
+                { x: 0, y: 380, w: 800, h: 20 },
+                { x: 120, y: 340, w: 100, h: 20 },
+                { x: 270, y: 300, w: 100, h: 20 },
+                { x: 420, y: 260, w: 100, h: 20 },
+                { x: 550, y: 220, w: 100, h: 20 },
+                { x: 650, y: 180, w: 80, h: 20 },
+                { x: 730, y: 140, w: 50, h: 20 }
+            ],
+            collectibles: [
+                { x: 150, y: 320, type: 'star', color: 'gold', orderColor: null },
+                { x: 300, y: 280, type: 'star', color: 'gold', orderColor: null },
+                { x: 570, y: 200, type: 'star', color: 'gold', orderColor: null }
+            ],
+            enemies: [
+                { x: 200, y: 360, w: 20, h: 20, dx: 2.0, minX: 150, maxX: 350 },
+                { x: 500, y: 360, w: 20, h: 20, dx: 2.5, minX: 400, maxX: 700 },
+                { x: 380, y: 250, w: 20, h: 20, dx: 1.8, minX: 300, maxX: 500 }
+            ],
+            exit: { x: 750, y: 120, w: 22, h: 30 },
+            requiredCount: 3,
+            order: null,
+            name: 'LEVEL 5'
+        }
+    ];
+
+    function resetCurrentLevel() {
+        loadLevel(currentLevel);
+    }
+
+    function loadLevel(levelIndex) {
+        const lvl = levelData[levelIndex];
+        platforms = lvl.platforms.map(p => ({...p}));
+        collectibles = lvl.collectibles.map(c => ({...c, collected: false}));
+        enemies = lvl.enemies.map(e => ({...e, x: e.minX}));
+        if (lvl.exit) {
+            exit = { ...lvl.exit, active: true };
+        } else {
+            exit = { x: 0, y: 0, w: 25, h: 30, active: false };
+        }
+        player.x = 50;
+        player.y = 300;
+        player.vx = 0;
+        player.vy = 0;
+        levelComplete = false;
+        deathReset = false;
+        levelJustCompleted = false;
+        requiredOrder = lvl.order ? [...lvl.order] : [];
+        collectedOrderIndex = 0;
+
+        showPostLevel3Choice = false;
+        warningDiv.style.display = 'none';
+
+        updateMessageForLevel(levelIndex);
+        levelDisplay.innerText = lvl.name;
+    }
+
+    function updateMessageForLevel(levelIndex) {
+        if (levelIndex === 0) gameMessage.innerHTML = '<span>✨ Level 1: Collect 5 golden stars ✨</span><button class="button-reset" id="resetBtn">↺ RESTART</button>';
+        else if (levelIndex === 1) gameMessage.innerHTML = '<span>🔵 Level 2: 3 blue gems + moving enemies 🔵</span><button class="button-reset" id="resetBtn">↺ RESTART</button>';
+        else if (levelIndex === 2) gameMessage.innerHTML = '<span>🔴🟢🔵 Collect in order: RED → GREEN → BLUE</span><button class="button-reset" id="resetBtn">↺ RESTART</button>';
+        else if (levelIndex === 3) gameMessage.innerHTML = '<span>⚠️ WARNING LEVEL – NO CODE PART. REACH THE FLAG! ⚠️</span><button class="button-reset" id="resetBtn">↺ RESTART</button>';
+        else if (levelIndex === 4) gameMessage.innerHTML = '<span>🏁 FINAL LEVEL: 3 stars + exit 🏁</span><button class="button-reset" id="resetBtn">↺ RESTART</button>';
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            currentLevel = 0;
+            codeParts = ["", "", ""];
+            updateCodeDisplay();
+            loadLevel(0);
+        });
+    }
+
+    function grantCodePart(partIndex, partString) {
+        if (codeParts[partIndex] === '') {
+            codeParts[partIndex] = partString;
+            updateCodeDisplay();
+        }
+    }
+
+    function checkLevelComplete() {
+        if (levelComplete) return true;
+        const lvl = levelData[currentLevel];
+        if (currentLevel === 3) {
+            if (exit.active && player.x < exit.x + exit.w && player.x + player.width > exit.x &&
+                player.y < exit.y + exit.h && player.y + player.height > exit.y) {
+                levelComplete = true;
+                return true;
+            }
+            return false;
+        }
+        if (currentLevel === 4) {
+            const allCollected = collectibles.every(c => c.collected);
+            if (allCollected && exit.active && player.x < exit.x + exit.w && player.x + player.width > exit.x &&
+                player.y < exit.y + exit.h && player.y + player.height > exit.y) {
+                levelComplete = true;
+                return true;
+            }
+            return false;
+        }
+        const remaining = collectibles.filter(c => !c.collected).length;
+        if (remaining === 0) {
+            levelComplete = true;
+            return true;
+        }
+        return false;
+    }
+
+    function tryCollect(collectible) {
+        if (collectible.collected) return;
+        const lvl = levelData[currentLevel];
+        if (currentLevel === 2 && lvl.order) {
+            const expectedColor = lvl.order[collectedOrderIndex];
+            if (collectible.orderColor === expectedColor) {
+                collectible.collected = true;
+                collectedOrderIndex++;
+            } else {
+                resetCurrentLevel();
+            }
+        } else {
+            collectible.collected = true;
+        }
+    }
+
+    function update() {
+        if (showPostLevel3Choice) return;
+        if (levelComplete || levelJustCompleted) return;
+        if (deathReset) return;
+
+        let move = 0;
+        if (keys.ArrowLeft) move -= 1;
+        if (keys.ArrowRight) move += 1;
+        player.vx = move * MOVE_SPEED;
+
+        if ((keys.Space || keys.ArrowUp) && player.onGround) {
+            player.vy = JUMP_FORCE;
+            player.onGround = false;
+        }
+
+        player.vy += GRAVITY;
+        player.y += player.vy;
+        player.x += player.vx;
+
+        player.onGround = false;
+        for (let pl of platforms) {
+            if (player.x < pl.x + pl.w && player.x + player.width > pl.x &&
+                player.y < pl.y + pl.h && player.y + player.height > pl.y) {
+                if (player.vy > 0 && player.y + player.height - player.vy <= pl.y) {
+                    player.y = pl.y - player.height;
+                    player.vy = 0;
+                    player.onGround = true;
+                } else if (player.vy < 0 && player.y - player.vy >= pl.y + pl.h) {
+                    player.y = pl.y + pl.h;
+                    player.vy = 0;
+                } else {
+                    if (player.vx > 0) player.x = pl.x - player.width;
+                    else if (player.vx < 0) player.x = pl.x + pl.w;
+                }
+            }
+        }
+
+        if (player.y > 400) resetCurrentLevel();
+
+        for (let e of enemies) {
+            e.x += e.dx;
+            if (e.x < e.minX || e.x + e.w > e.maxX) {
+                e.dx *= -1;
+                e.x = Math.min(Math.max(e.x, e.minX), e.maxX - e.w);
+            }
+            if (player.x < e.x + e.w && player.x + player.width > e.x &&
+                player.y < e.y + e.h && player.y + player.height > e.y) {
+                resetCurrentLevel();
+                return;
+            }
+        }
+
+        for (let c of collectibles) {
+            if (!c.collected) {
+                const dist = Math.hypot((player.x+player.width/2) - (c.x+8), (player.y+player.height/2) - (c.y+8));
+                if (dist < 22) {
+                    tryCollect(c);
+                }
+            }
+        }
+
+        if (checkLevelComplete()) {
+            levelJustCompleted = true;
+            const lvlIdx = currentLevel;
+
+            if (lvlIdx === 0 && codeParts[0] === '') grantCodePart(0, 'A1B2');
+            if (lvlIdx === 1 && codeParts[1] === '') grantCodePart(1, 'C3D4');
+            if (lvlIdx === 2 && codeParts[2] === '') {
+                grantCodePart(2, 'E5F6');
+                // After level 3, show the warning choice
+                showPostLevel3Choice = true;
+                gameMessage.innerHTML = `
+                    <span style="color: red; font-weight: bold;">⚠️ YOU HAVE COLLECTED ALL THREE CODE PARTS! ⚠️</span>
+                    <div class="choice-container">
+                        <button class="button-choice" id="claimBtn">🏁 CLAIM PRIZE (end game with parts)</button>
+                        <button class="button-choice" id="continueBtn">▶ CONTINUE (lose parts and face Level 4)</button>
+                    </div>
+                    <button class="button-reset" id="resetBtn">↺ RESTART</button>
+                `;
+                document.getElementById('claimBtn').addEventListener('click', () => {
+                    const finalCode = `${codeParts[0]}-${codeParts[1]}-${codeParts[2]}`;
+                    gameMessage.innerHTML = `
+                        <span style="color: gold;">🏆 YOU CLAIMED YOUR PRIZE!</span>
+                        <span class="final-code">${finalCode}</span>
+                        <button class="button-copy" id="copyFinalBtn">📋 Copy Code</button>
+                        <button class="button-reset" id="resetBtn">↺ PLAY AGAIN</button>
+                    `;
+                    document.getElementById('copyFinalBtn').addEventListener('click', () => {
+                        copyToClipboard(finalCode);
+                    });
+                    document.getElementById('resetBtn').addEventListener('click', () => {
+                        currentLevel = 0;
+                        codeParts = ["", "", ""];
+                        updateCodeDisplay();
+                        loadLevel(0);
+                    });
+                    showPostLevel3Choice = false;
+                    levelJustCompleted = true;
+                });
+                document.getElementById('continueBtn').addEventListener('click', () => {
+                    codeParts = ["", "", ""];
+                    updateCodeDisplay();
+                    showPostLevel3Choice = false;
+                    levelJustCompleted = false;
+                    currentLevel = 3;
+                    loadLevel(3);
+                });
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    currentLevel = 0;
+                    codeParts = ["", "", ""];
+                    updateCodeDisplay();
+                    loadLevel(0);
+                });
+                return;
+            }
+
+            if (lvlIdx === 4) {
+                // Final level complete – give a different, fixed code
+                const finalCode = "X7Y8-Z9W0";  // Different from parts 1-3
+                gameMessage.innerHTML = `
+                    <span style="color:gold;">🏆 GRAND PRIZE!</span>
+                    <span class="final-code">${finalCode}</span>
+                    <button class="button-copy" id="copyFinalBtn">📋 Copy Code</button>
+                    <button class="button-reset" id="resetBtn">↺ RESTART</button>
+                `;
+                document.getElementById('copyFinalBtn').addEventListener('click', () => {
+                    copyToClipboard(finalCode);
+                });
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    currentLevel = 0;
+                    codeParts = ["", "", ""];
+                    updateCodeDisplay();
+                    loadLevel(0);
+                });
+                levelDisplay.innerText = '🏁 VICTORY 🏁';
+                return;
+            } else if (lvlIdx <= 1) {
+                gameMessage.innerHTML = `
+                    <span style="color:green;">✅ Level ${lvlIdx+1} complete! Part ${lvlIdx+1} unlocked.</span>
+                    <button class="button-next" id="nextLevelBtn">➡️ NEXT LEVEL</button>
+                    <button class="button-reset" id="resetBtn">↺ RESTART</button>
+                `;
+                document.getElementById('nextLevelBtn').addEventListener('click', () => {
+                    currentLevel++;
+                    loadLevel(currentLevel);
+                });
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    currentLevel = 0;
+                    codeParts = ["", "", ""];
+                    updateCodeDisplay();
+                    loadLevel(0);
+                });
+            } else if (lvlIdx === 3) {
+                gameMessage.innerHTML = `<span>🚩 Level 4 complete! Proceeding to final level...</span>`;
+                setTimeout(() => {
+                    currentLevel = 4;
+                    loadLevel(4);
+                }, 1500);
+            }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, 800, 400);
+        const grad = ctx.createLinearGradient(0, 0, 0, 400);
+        grad.addColorStop(0, '#b2e6ff');
+        grad.addColorStop(0.7, '#f9d77e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 800, 400);
+        
+        ctx.shadowColor = '#7a4d1a';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 4;
+        for (let p of platforms) {
+            ctx.fillStyle = '#6eb05e';
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.fillStyle = '#508a40';
+            ctx.fillRect(p.x, p.y, p.w, 5);
+        }
+        ctx.shadowColor = '#440000';
+        for (let e of enemies) {
+            ctx.fillStyle = '#e03a3a';
+            ctx.beginPath();
+            ctx.ellipse(e.x + e.w/2, e.y + e.h/2, e.w/2, e.h/2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(e.x+5, e.y+5, 3, 0, 2*Math.PI);
+            ctx.fill();
+        }
+        ctx.shadowColor = 'gold';
+        for (let c of collectibles) {
+            if (!c.collected) {
+                ctx.fillStyle = c.color;
+                ctx.beginPath();
+                if (c.type === 'star') {
+                    ctx.arc(c.x+8, c.y+8, 10, 0, 2*Math.PI);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.fillText('★', c.x+3, c.y+14);
+                } else {
+                    ctx.arc(c.x+8, c.y+8, 9, 0, 2*Math.PI);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff5cc';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('💎', c.x+1, c.y+14);
+                }
+            }
+        }
+        if (exit.active) {
+            ctx.shadowColor = '#3c8d2f';
+            ctx.fillStyle = '#42b72a';
+            ctx.fillRect(exit.x, exit.y, exit.w, exit.h);
+            ctx.fillStyle = '#f3c300';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.fillText('🚩', exit.x-5, exit.y-5);
+        }
+        ctx.shadowColor = '#222222';
+        ctx.fillStyle = '#f7d63e';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(player.x+3, player.y+3, 5, 5);
+        ctx.fillRect(player.x+12, player.y+3, 5, 5);
+
+        if (showPostLevel3Choice) {
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = '#330000';
+            ctx.fillRect(0, 0, 800, 400);
+            ctx.globalAlpha = 1;
+            ctx.font = 'bold 28px monospace';
+            ctx.fillStyle = '#ffaaaa';
+            ctx.fillText('⚠️  CHOOSE YOUR FATE  ⚠️', 160, 200);
+        }
+        ctx.shadowBlur = 0;
+    }
+
+    function gameLoop() {
+        if (!showPostLevel3Choice && !levelJustCompleted && !deathReset) {
+            update();
+        }
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    const keys = { ArrowLeft: false, ArrowRight: false, Space: false, ArrowUp: false };
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Space') {
+            e.preventDefault();
+            if (e.key === ' ') keys.Space = true;
+            else if (e.key === 'ArrowUp') keys.ArrowUp = true;
+            else if (e.key === 'ArrowLeft') keys.ArrowLeft = true;
+            else if (e.key === 'ArrowRight') keys.ArrowRight = true;
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft') keys.ArrowLeft = false;
+        if (e.key === 'ArrowRight') keys.ArrowRight = false;
+        if (e.key === ' ') keys.Space = false;
+        if (e.key === 'ArrowUp') keys.ArrowUp = false;
+    });
+
+    // ----- START GAME -----
+    loadLevel(0);
+    updateCodeDisplay();
+    gameLoop();
+})();
+</script>
+</body>
+</html>
